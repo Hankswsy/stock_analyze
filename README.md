@@ -1,0 +1,147 @@
+# K 線組合機器學習辨識
+
+用**無監督機器學習**分析台股 K 線組合的實驗專案。從「用 K 線型態預測漲跌」出發,
+經過一連串嚴謹驗證,最後落腳在真正站得住腳的應用:**盤勢(波動度)偵測與風險管理**。
+
+> 名詞看不懂?先讀 [`docs/名詞解釋.md`](docs/名詞解釋.md)。
+
+---
+
+## TL;DR — 這個專案證明了什麼
+
+| 嘗試 | 方法 | 樣本外結果 |
+|------|------|-----------|
+| 用 K 線型態**預測方向** | 分群 + 去市場化 + walk-forward | ❌ 訊號消失或反轉 —— **不可用** |
+| 用盤勢特徵**預測波動** | 分群 + walk-forward | ✅ 波動排序完全延續 —— **可用** |
+| 依盤勢**調整倉位** | 波動目標法回測 | ⚖️ 風險↓(波動、回撤下降),但多頭中少賺,Sharpe 持平 |
+| **加交易成本**後 | 台股手續費+證交稅 | ⚠️ 換手太兇,淨 Sharpe 1.80 < 買進持有 2.00;加不交易帶救回 1.86 |
+| **多段滾動驗證** | 8 段 WFA,2018-2026 | 🟰 跨多頭/空頭/崩盤,Sharpe 1.19≈買進持有 1.22 —— **策略本質 Sharpe 中性** |
+| **擴大股池**(89 檔) | 橫斷面去均值 walk-forward | ❌ 方向仍無樣本外預測力;並抓到「減指數」的成分偏差陷阱,改用橫斷面去均值修正 |
+
+**一句話**:在流動性高的權值股上,用 K 線猜「漲跌」幾乎不可行;但判斷「盤勢/風險」可行。
+這也是為什麼專業量化多把機器學習用在**風險管理**而非**方向擇時**。
+
+---
+
+## 完整故事線
+
+1. **單檔型態** — KMeans 把 5 根 K 線組合分群,看似有訊號。
+2. **多檔混合** — 跨股票訓練,signal_t 飆到 7 …… **但全是大盤 beta(大家一起漲)**。
+3. **去市場化** — 報酬扣掉大盤,真相浮現:只剩一群統計顯著(偏空)。
+4. **深挖** — 拆解那一群,發現它其實是 **2023–24 的價值 vs 成長產業輪動**,而且傳產續弱、
+   科技龍頭反而反彈,**不通用**。
+5. **Walk-forward 驗證** — 用過去定義的型態測未來:**訊號消失,甚至反轉方向**。方向不可預測。
+6. **盤勢偵測** — 改預測未來波動度:訓練/測試的波動排序 **完全一致**,通過樣本外驗證。
+7. **策略回測** — 依盤勢調倉 vs 買進持有:**降低波動與回撤**,Sharpe 持平(誠實結果)。
+8. **加交易成本** — 換手太兇(年化 8 倍),淨 Sharpe 掉到 1.80;加**不交易帶**壓低換手救回 1.86。
+9. **多段滾動驗證(WFA)** — 8 段涵蓋 2018-2026 各種盤勢:Sharpe 1.19 ≈ 買進持有 1.22,
+   回撤保護也很有限(20 日波動反應太慢)。**結論:策略本質 Sharpe 中性,是風險縮放而非 alpha。**
+10. **擴大股池(89 檔跨產業)** — 想讓方向訊號翻身。減 0050 時出現「四群一致 −13 偏空」的
+    異常,查出是 **0050 被台積電主導的指數成分偏差**;改用**橫斷面去均值**(減當天全股池等權
+    平均)後,樣本外訊號全部歸零。**方向在更廣股池 + 更嚴謹方法下,仍無樣本外預測力。**
+
+---
+
+## 專案結構
+
+```
+stock_web/
+├─ kline/                    核心模組
+│  ├─ data.py               下載 OHLCV(還原權值),多檔批次
+│  ├─ features.py           滑動視窗 + 尺度不變正規化 → 特徵矩陣
+│  ├─ discover.py           標準化 → PCA → KMeans,silhouette 自動挑群數
+│  ├─ analyze.py            未來報酬 / 去市場化超額報酬 + 跨股票一致性
+│  ├─ visualize.py          每群 medoid 畫成 K 線圖
+│  ├─ deepdive.py           深挖單一群:形狀、逐股、逐年、逐月
+│  ├─ walkforward.py        樣本內 vs 樣本外驗證(方向)
+│  ├─ regime.py             盤勢特徵 + 未來波動統計 + 命名 + 驗證圖
+│  ├─ backtest.py           波動目標法倉位 + 交易成本 + 不交易帶 + 回測 + 績效
+│  └─ supervised.py         監督式資料準備(形狀+情境特徵、橫斷面 label)
+├─ main.py                  單檔型態發現
+├─ main_multi.py            多檔混合 + 去市場化
+├─ main_deepdive.py         深挖最顯著的群
+├─ main_walkforward.py      方向的 walk-forward 驗證
+├─ main_regime.py           盤勢偵測 + walk-forward
+├─ main_strategy.py         盤勢策略回測(單段,含成本/不交易帶)
+├─ main_wfa.py              多段滾動 walk-forward 驗證
+├─ main_xgb.py              XGBoost 監督式方向分類(教學範例)
+└─ docs/名詞解釋.md          所有名詞白話解釋
+```
+
+---
+
+## 環境與安裝
+
+已用專案內的 venv:`stock_venv`。套件:numpy, pandas, requests, scikit-learn, matplotlib, yfinance。
+
+```bash
+# 若要重裝
+./stock_venv/Scripts/python.exe -m pip install scikit-learn matplotlib yfinance
+```
+
+> **主控台中文**:Windows cp950 主控台印中文會亂碼,執行時前面加 `PYTHONIOENCODING=utf-8`
+> (不影響存出來的圖檔與計算結果)。
+
+---
+
+## 怎麼跑
+
+```bash
+cd C:/Users/swsy0/Desktop/Program/code/stock_web
+
+# 1) 單檔型態發現(附原型圖 patterns.png)
+./stock_venv/Scripts/python.exe main.py 2330.TW --window 5 --period 5y
+
+# 2) 多檔混合 + 去市場化(patterns_multi.png)
+PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_multi.py --period 5y --benchmark 0050.TW
+
+# 3) 深挖最顯著的型態群
+PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_deepdive.py --period 5y
+
+# 4) 方向的 walk-forward 驗證(證明方向不可預測)
+PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_walkforward.py --period 8y --cutoff 2023-01-01
+
+# 5) 盤勢偵測 + 驗證(regime.png)
+PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_regime.py --period 8y --k 4
+
+# 6) 盤勢策略回測(單段,含成本;strategy.png)
+PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_strategy.py --period 8y --k 4 --band 0.15
+
+# 7) 多段滾動 walk-forward 驗證(wfa.png)
+PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_wfa.py --period 12y --train_years 3 --test_years 1 --band 0.15
+
+# 8) XGBoost 監督式方向分類(教學範例;xgb_importance.png)
+PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_xgb.py --file symbols.txt --period 8y --cutoff 2023-01-01
+```
+
+---
+
+## 方法重點(為什麼可信)
+
+- **尺度不變正規化**:視窗內 `(x-最低)/(最高-最低)`,讓不同價位股票的相同形狀落在同一區,
+  多檔才能混合訓練。
+- **去市場化**:`個股報酬 − beta × 大盤報酬`,濾掉「大家一起漲」的假訊號。
+- **Walk-forward**:只用訓練期(過去)分群定義型態,套到測試期(未來)評估;分群不看報酬,
+  無未來函數偏誤。這是研究變實戰的分水嶺 —— 少了它,樣本內的「顯著」會騙人。
+- **波動目標法**:倉位 = `clip(目標波動 / 該盤勢預期波動, 下限, 1.0)`,高波盤勢自動減碼。
+
+---
+
+## 已知限制 / 下一步
+
+- **股池**:目前只有台股權值股(效率高、最難找 alpha)。加入中小型、多產業或許能挖到更通用的型態。
+- **去市場化方法**:優先用橫斷面去均值(`--method xs`),避開指數成分偏差;
+  「減指數 beta」在股池≠指數成分時會失真(本專案已驗證)。
+- **交易成本**:回測未計手續費/滑價/證交稅,實務報酬會再打折。
+- **反應速度**:盤勢用 20 日回看,對急殺(如 2020 兩週崩 30%)反應太慢,回撤保護有限;
+  可試更短 lookback 或加入更靈敏的風險指標(如日內波動、跳空)。
+- **方向模型**:若仍想做方向,建議走監督式(未來報酬當 label 訓 XGBoost)並加情境特徵,
+  而非純 K 線形狀。
+- **股池**:方向實驗只用權值股(最難);擴到中小型/多產業或許能讓方向訊號翻身。
+
+---
+
+## 核心結論
+
+> K 線的**形狀**在效率市場裡對**方向**幾乎沒有持久預測力,但對**波動/盤勢**有。
+> 把機器學習用在對的問題(風險管理)上,才會得到通過樣本外驗證的結果。

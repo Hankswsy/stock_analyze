@@ -1,0 +1,11 @@
+# Python venv(很大,不進版控)
+stock_venv/
+
+# Python 快取
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 系統
+.DS_Store
+Thumbs.db
