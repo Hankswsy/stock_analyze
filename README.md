@@ -72,46 +72,48 @@ stock_web/
 
 ## 環境與安裝
 
-已用專案內的 venv:`stock_venv`。套件:numpy, pandas, requests, scikit-learn, matplotlib, yfinance。
+已用專案內的 venv:`stock_venv`。套件:numpy, pandas, requests, scikit-learn, matplotlib, yfinance, xgboost。
 
-```bash
-# 若要重裝
-./stock_venv/Scripts/python.exe -m pip install scikit-learn matplotlib yfinance
+先啟用虛擬環境(PowerShell):
+
+```powershell
+.\stock_venv\Scripts\Activate.ps1
 ```
 
-> **主控台中文**:Windows cp950 主控台印中文會亂碼,執行時前面加 `PYTHONIOENCODING=utf-8`
-> (不影響存出來的圖檔與計算結果)。
+> 之後直接用 `python` 即可。中文輸出已由 `kline/__init__.py` 自動設成 UTF-8,
+> Windows 主控台也不會亂碼,不用再管編碼。若要重裝套件:
+> `python -m pip install scikit-learn matplotlib yfinance xgboost`
 
 ---
 
 ## 怎麼跑
 
-```bash
-cd C:/Users/swsy0/Desktop/Program/code/stock_web
+啟用 venv 後:
 
+```bash
 # 1) 單檔型態發現(附原型圖 patterns.png)
-./stock_venv/Scripts/python.exe main.py 2330.TW --window 5 --period 5y
+python main.py 2330.TW --window 5 --period 5y
 
 # 2) 多檔混合 + 去市場化(patterns_multi.png)
-PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_multi.py --period 5y --benchmark 0050.TW
+python main_multi.py --period 5y --benchmark 0050.TW
 
 # 3) 深挖最顯著的型態群
-PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_deepdive.py --period 5y
+python main_deepdive.py --period 5y
 
 # 4) 方向的 walk-forward 驗證(證明方向不可預測)
-PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_walkforward.py --period 8y --cutoff 2023-01-01
+python main_walkforward.py --period 8y --cutoff 2023-01-01 --method xs
 
 # 5) 盤勢偵測 + 驗證(regime.png)
-PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_regime.py --period 8y --k 4
+python main_regime.py --period 8y --k 4
 
 # 6) 盤勢策略回測(單段,含成本;strategy.png)
-PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_strategy.py --period 8y --k 4 --band 0.15
+python main_strategy.py --period 8y --k 4 --band 0.15
 
 # 7) 多段滾動 walk-forward 驗證(wfa.png)
-PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_wfa.py --period 12y --train_years 3 --test_years 1 --band 0.15
+python main_wfa.py --period 12y --train_years 3 --test_years 1 --band 0.15
 
 # 8) XGBoost 監督式方向分類(教學範例;xgb_importance.png)
-PYTHONIOENCODING=utf-8 ./stock_venv/Scripts/python.exe main_xgb.py --file symbols.txt --period 8y --cutoff 2023-01-01
+python main_xgb.py --file symbols.txt --period 8y --cutoff 2023-01-01
 ```
 
 ---
