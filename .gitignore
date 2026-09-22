@@ -9,3 +9,5 @@ __pycache__/
 # 系統
 .DS_Store
 Thumbs.db
+
+*.png
