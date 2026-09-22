@@ -72,17 +72,31 @@ stock_web/
 
 ## 環境與安裝
 
-已用專案內的 venv:`stock_venv`。套件:numpy, pandas, requests, scikit-learn, matplotlib, yfinance, xgboost。
+Python 3.13 + 專案內的 venv:`stock_venv`。
 
-先啟用虛擬環境(PowerShell):
+**1. 啟用虛擬環境**(PowerShell):
 
 ```powershell
 .\stock_venv\Scripts\Activate.ps1
 ```
 
+**2. 安裝套件**(啟用後執行一次):
+
+```bash
+python -m pip install numpy pandas requests scikit-learn matplotlib yfinance xgboost
+```
+
+| 套件 | 用途 |
+|------|------|
+| numpy / pandas | 數值與資料處理 |
+| requests | yfinance 底層依賴 |
+| yfinance | 下載股票 OHLCV |
+| scikit-learn | KMeans、PCA、標準化、評估指標 |
+| xgboost | 監督式方向分類(教學範例) |
+| matplotlib | 畫 K 線圖與績效圖 |
+
 > 之後直接用 `python` 即可。中文輸出已由 `kline/__init__.py` 自動設成 UTF-8,
-> Windows 主控台也不會亂碼,不用再管編碼。若要重裝套件:
-> `python -m pip install scikit-learn matplotlib yfinance xgboost`
+> Windows 主控台也不會亂碼,不用再管編碼。
 
 ---
 
